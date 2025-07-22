@@ -8,3 +8,14 @@ erl_crash.dump
 *.beam
 /config/*.secret.exs
 .elixir_ls/
+
+# Editor/IDE
+# .idea/
+# .vscode/
+
+# Emacs files
+\#*\#
+*~
+
+# MacOS
+.DS_Store
