@@ -1,0 +1,15 @@
+# Example library install and call
+
+```elixir
+Mix.install([
+  {:uuid, "~> 1.1"}
+])
+```
+
+## Section
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+UUID.info!("8ea1513df8a14dea9bea6b8f4b5b6e73")
+```
