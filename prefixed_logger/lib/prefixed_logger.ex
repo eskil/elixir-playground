@@ -23,10 +23,14 @@ defmodule PrefixedLogger do
 
           quote do
             require Logger
-            Logger.log(unquote(lvl), fn ->
-              evaluated = PrefixedLogger.eval_msg(unquote(message))
-              [unquote(pfx), evaluated]
-            end, unquote(metadata))
+            Logger.log(
+              unquote(lvl),
+              fn ->
+                evaluated = PrefixedLogger.eval_msg(unquote(message))
+                [unquote(pfx), evaluated]
+              end,
+              Keyword.put_new(unquote(metadata), :prefix, unquote(pfx))
+            )
           end
         end
       end
