@@ -3,6 +3,6 @@ defmodule Worker do
 
   def run do
     info("prefixed log")
-    warning(fn -> "lazy prefixed log" end)
+    warn(fn -> "lazy prefixed log" end)
   end
 end
