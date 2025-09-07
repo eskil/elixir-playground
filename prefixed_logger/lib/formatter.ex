@@ -10,16 +10,15 @@ defmodule MyApp.LoggerFormatter do
       case level do
         :debug -> ANSI.faint()
         :info -> ANSI.green()
-        :warn -> ANSI.yellow()
+        :warning -> ANSI.yellow()
         :error -> ANSI.red()
       end
 
     reset = ANSI.reset()
 
     [
-      ts, " ",
-      color, "[", Atom.to_string(level), "] ", reset,
-      prefix, message, "\n"
+      color, ts, " ",
+      "[", Atom.to_string(level), "] ", reset, message, "\n"
     ]
   end
 
