@@ -1,12 +1,9 @@
 defmodule MyApp.LoggerFormatter do
-  @moduledoc false
   alias IO.ANSI
 
   def format(level, message, timestamp, metadata) do
     prefix = Keyword.get(metadata, :prefix, "")
-
     message = normalize_message(message)
-
     ts = format_timestamp(timestamp)
 
     color =
@@ -34,9 +31,9 @@ defmodule MyApp.LoggerFormatter do
     end
   end
 
-  defp format_timestamp({{year, month, day}, {hour, min, sec, micro}}) do
-    microsecond = {micro * 1000, 6} # Logger provides milliseconds; convert to microseconds
-    {:ok, naive} = NaiveDateTime.from_erl({{year, month, day}, {hour, min, sec}}, microsecond)
+  defp format_timestamp({{year, month, day}, {hour, min, sec, ms}}) do
+    micro = {ms * 1000, 6}
+    {:ok, naive} = NaiveDateTime.from_erl({{year, month, day}, {hour, min, sec}}, micro)
     DateTime.from_naive!(naive, "Etc/UTC") |> DateTime.to_string()
   end
 end
