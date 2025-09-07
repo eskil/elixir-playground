@@ -1,23 +1,42 @@
-defmodule Formatter do
-  @pattern Logger.Formatter.compile("$time $metadata[$level] $message\n")
+defmodule MyApp.LoggerFormatter do
+  @moduledoc false
+  alias IO.ANSI
 
   def format(level, message, timestamp, metadata) do
-    # If :prefix metadata exists, incorporate it (with colour for console)
-    msg =
-      case Keyword.get(metadata, :prefix) do
-        nil ->
-          message
+    prefix = Keyword.get(metadata, :prefix, "")
 
-        prefix ->
-          [color_for(level), prefix, IO.ANSI.reset(), " ", message]
+    message = normalize_message(message)
+
+    ts = format_timestamp(timestamp)
+
+    color =
+      case level do
+        :debug -> ANSI.faint()
+        :info -> ANSI.green()
+        :warn -> ANSI.yellow()
+        :error -> ANSI.red()
       end
 
-    Logger.Formatter.format(@pattern, level, msg, timestamp, metadata)
+    reset = ANSI.reset()
+
+    [
+      ts, " ",
+      color, "[", Atom.to_string(level), "] ", reset,
+      prefix, message, "\n"
+    ]
   end
 
-  defp color_for(:debug), do: IO.ANSI.cyan()
-  defp color_for(:info),  do: IO.ANSI.green()
-  defp color_for(:warn),  do: IO.ANSI.yellow()
-  defp color_for(:error), do: IO.ANSI.red()
-  defp color_for(_),      do: ""
+  defp normalize_message(msg) do
+    case msg do
+      {:string, iodata} -> IO.iodata_to_binary(iodata)
+      fun when is_function(fun, 0) -> normalize_message(fun.())
+      iodata -> IO.iodata_to_binary(iodata)
+    end
+  end
+
+  defp format_timestamp({{year, month, day}, {hour, min, sec, micro}}) do
+    microsecond = {micro * 1000, 6} # Logger provides milliseconds; convert to microseconds
+    {:ok, naive} = NaiveDateTime.from_erl({{year, month, day}, {hour, min, sec}}, microsecond)
+    DateTime.from_naive!(naive, "Etc/UTC") |> DateTime.to_string()
+  end
 end
