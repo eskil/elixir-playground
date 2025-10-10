@@ -24,7 +24,7 @@ defmodule PrefixedLogger do
         quote do
           md = Keyword.put_new(unquote(metadata), :prefix, @logger_prefix)
 
-          Logger.log(:debug, fn ->
+          Logger.debug(fn ->
             [@logger_prefix, evaluate_message(unquote(message))]
           end, md)
         end
@@ -34,7 +34,7 @@ defmodule PrefixedLogger do
         quote do
           md = Keyword.put_new(unquote(metadata), :prefix, @logger_prefix)
 
-          Logger.log(:info, fn ->
+          Logger.info(fn ->
             [@logger_prefix, evaluate_message(unquote(message))]
           end, md)
         end
@@ -44,7 +44,7 @@ defmodule PrefixedLogger do
         quote do
           md = Keyword.put_new(unquote(metadata), :prefix, @logger_prefix)
 
-          Logger.log(:warning, fn ->
+          Logger.warning(fn ->
             [@logger_prefix, evaluate_message(unquote(message))]
           end, md)
         end
@@ -54,7 +54,7 @@ defmodule PrefixedLogger do
         quote do
           md = Keyword.put_new(unquote(metadata), :prefix, @logger_prefix)
 
-          Logger.log(:error, fn ->
+          Logger.error(fn ->
             [@logger_prefix, evaluate_message(unquote(message))]
           end, md)
         end
