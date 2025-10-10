@@ -22,7 +22,7 @@ defmodule PrefixedLogger.MixProject do
     [
       # Since elixir 1.15, use logger_backends, see
       # https://hexdocs.pm/logger/1.18.4/Logger.html#module-backends-and-backwards-compatibility
-      {:logger_backends, "~> 1.0.0"}
+      # {:logger_backends, "~> 1.0.0"}
     ]
   end
 end

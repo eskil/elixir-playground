@@ -42,6 +42,9 @@ defmodule MyApp.LoggerFormatter do
   """
   alias IO.ANSI
 
+  ###
+  # Format an erlang timestamp to a prettier string
+  #
   @spec format_timestamp({{year :: integer, month :: integer, day :: integer},
                           {hour :: integer, min :: integer, sec :: integer, micro :: integer}},
     precision :: :ms | :milli) :: iodata()
@@ -64,6 +67,10 @@ defmodule MyApp.LoggerFormatter do
 
   def format_timestamp(ts), do: format_timestamp(ts, :ms)
 
+  ###
+  # Pick a consistent (using hash) color for a given prefix
+  #
+
   @colors [
     :red,
     :green,
@@ -84,18 +91,63 @@ defmodule MyApp.LoggerFormatter do
   def color_for(nil, "") do
       "reset"
   end
+
   def color_for(nil, file) do
     idx = :erlang.phash2(file, length(@colors))
     Enum.at(@colors, idx)
   end
+
   def color_for(name, _) when is_binary(name) do
     idx = :erlang.phash2(name, length(@colors))
     Enum.at(@colors, idx)
   end
 
+  def color_for(_name, _) do
+    "reset"
+  end
+
+  ##
+  # Manage in an ets table. State is eg. longest current prefix.
+  # TODO: also track resetting it, eg after :io.rows lines logged
+  # or a time
+  #
+  @ets_table :pretty_logger_formatter
+  @ets_maxlen_key :longest
+
+  defp ensure_table do
+    case :ets.info(@ets_table) do
+      :undefined ->
+        :ets.new(@ets_table, [:named_table, :public])
+        :ets.insert(@ets_table, {@ets_maxlen_key, 0})
+      _ -> :ok
+    end
+  end
+
+  def get_and_set_max_len(prefix) do
+    ensure_table()
+    [{@ets_maxlen_key, max}] = :ets.lookup(@ets_table, @ets_maxlen_key)
+    new_max = max(String.length(prefix), max)
+    if new_max != max, do: :ets.insert(@ets_table, {@ets_maxlen_key, new_max})
+    new_max
+  end
+
+  ##
+  # Helper functions to extra metadata
+  def get_prefix_default do
+    {:registered_name, prefix} = Process.info(self(), :registered_name)
+    case prefix do
+      [] -> ""
+      _ -> prefix
+    end
+  end
+
+  ##
+  # The formatted mess^H^H^Hfunction
+  #
+
   def format(level, message, ts, metadata) do
-    {prefix, metadata} = Keyword.pop(metadata, :registered_name,
-      Process.info(self(), :registered_name))
+    {prefix, metadata} = Keyword.pop(metadata, :registered_name, get_prefix_default())
+
     {file, metadata} = Keyword.pop(metadata, :file, "")
     {line, metadata} = Keyword.pop(metadata, :line, "")
     {color_name, _metadata} = Keyword.pop(metadata, :color, color_for(prefix, file))
@@ -144,10 +196,9 @@ defmodule MyApp.LoggerFormatter do
 
     # Set padding to longest seen prefix - no ideal, should probably shrink again over
     # time or have a max?
-    max_len = Process.get(:max_prefix_len, 0)
-    new_max = max(String.length(prefix), max_len)
-    Process.put(:max_prefix_len, new_max)
+    new_max = get_and_set_max_len(prefix)
 
+    header_io = ["\n", t, " "]
     level_io = [level_color, level_str, reset, " "]
     prefix_io = case prefix do
                    nil -> []
@@ -157,13 +208,13 @@ defmodule MyApp.LoggerFormatter do
     file_io = [faint_color, file, ":", Integer.to_string(line), reset]
 
     [
-      "\n", t, " ",
+      header_io,
       prefix_io,
       level_io,
       message_io,
       file_io,
     ]
   rescue
-    e -> "could not format: #{inspect({level, message, metadata})}: #{inspect e}"
+    e -> "could not format: #{inspect({level, message, metadata})}: error: #{inspect e}"
   end
 end
