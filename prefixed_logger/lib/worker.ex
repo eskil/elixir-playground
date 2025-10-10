@@ -1,8 +1,9 @@
 defmodule Worker do
-  use PrefixedLogger, prefix: "worker: "
+  require Logger
 
   def run do
-    info("hmm prefixed log")
-    warn(fn -> "lazy prefixed log" end)
+    Logger.metadata([registered_name: "worker"])
+    Logger.info("hmm prefixed log")
+    Logger.warn(fn -> "lazy prefixed log" end)
   end
 end

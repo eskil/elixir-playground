@@ -1,38 +1,169 @@
 defmodule MyApp.LoggerFormatter do
+  @moduledoc """
+  The custom logger logs messages with a colorised prefix, and colors the
+  message by level.
+
+  The prefix is set by setting a `:registered_name` in metadata and optionally
+  a `:color` in the process. If `:registered_name` isn't set, it defaults to
+  `Process.info(self(), :registered_name)`.
+
+  ```elixir
+  def init(state) do
+    Logger.metadata(registered_name: "worker", color: :green)
+  end
+  ```
+
+  If the `:color` it not set, and consistent color is picked by hashing the prefix.
+
+  Enable the logging formatter in your config. Note, you have to specify
+  `:color` in `metadata` for them to be passed to the logger.
+
+  `config/runtime.exs`
+  ```elixir
+  config :logger,
+    logger: :console,
+    default_level: :info,
+    format: {MyApp.LoggerFormatter, :format},
+    metadata: [:error_code, :file, :line, :registered_name, :color],
+  ```
+
+  Or to combine with flexlogger;
+
+  ```elixir
+  config :logger,
+    backends: [{FlexLogger, :myapp_logger}]
+
+  config :logger, :myapp_logger,
+    logger: :console,
+    default_level: :info,
+    format: {MyApp.LoggerFormatter, :format},
+    metadata: [:error_code, :file, :line, :registered_name, :color],
+  ```
+  """
   alias IO.ANSI
 
-  def format(level, message, timestamp, metadata) do
-    prefix = Keyword.get(metadata, :prefix, "")
-    message = normalize_message(message)
-    ts = format_timestamp(timestamp)
+  @spec format_timestamp({{year :: integer, month :: integer, day :: integer},
+                          {hour :: integer, min :: integer, sec :: integer, micro :: integer}},
+    precision :: :ms | :milli) :: iodata()
+  def format_timestamp({{year, month, day}, {hour, min, sec, micro}}, :ms) do
+    ms = div(micro, 1000)
 
-    color =
-      case level do
-        :debug -> ANSI.faint()
-        :info -> ANSI.green()
-        :warning -> ANSI.yellow()
-        :error -> ANSI.red()
-      end
+    :io_lib.format(
+      "~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B.~3..0B",
+      [year, month, day, hour, min, sec, ms]
+    )
+  end
 
+  def format_timestamp({{year, month, day}, {hour, min, sec, _micro}}, :milli) do
+    # Whole seconds only
+    :io_lib.format(
+      "~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B",
+      [year, month, day, hour, min, sec]
+    )
+  end
+
+  def format_timestamp(ts), do: format_timestamp(ts, :ms)
+
+  @colors [
+    :red,
+    :green,
+    :yellow,
+    :blue,
+    :magenta,
+    :cyan,
+    :white,
+    :light_red,
+    :light_green,
+    :light_yellow,
+    :light_blue,
+    :light_magenta,
+    :light_cyan,
+    :light_white,
+  ]
+
+  def color_for(nil, "") do
+      "reset"
+  end
+  def color_for(nil, file) do
+    idx = :erlang.phash2(file, length(@colors))
+    Enum.at(@colors, idx)
+  end
+  def color_for(name, _) when is_binary(name) do
+    idx = :erlang.phash2(name, length(@colors))
+    Enum.at(@colors, idx)
+  end
+
+  def format(level, message, ts, metadata) do
+    {prefix, metadata} = Keyword.pop(metadata, :registered_name,
+      Process.info(self(), :registered_name))
+    {file, metadata} = Keyword.pop(metadata, :file, "")
+    {line, metadata} = Keyword.pop(metadata, :line, "")
+    {color_name, _metadata} = Keyword.pop(metadata, :color, color_for(prefix, file))
+    t = format_timestamp(ts)
+    color = apply(ANSI, color_name, [])
     reset = ANSI.reset()
 
+    level_color =
+      case level do
+        :emergency -> ANSI.red()
+        :alert -> ANSI.red()
+        :critical -> ANSI.red()
+        :error -> ANSI.light_red()
+        :warning -> ANSI.yellow()
+        :notice -> ANSI.reset()
+        :info -> ANSI.reset()
+        :debug -> ANSI.cyan()
+      end
+
+    msg_color =
+      case level do
+        :emergency -> ANSI.red()
+        :alert -> ANSI.red()
+        :critical -> ANSI.red()
+        :error -> ANSI.light_red()
+        :warning -> ANSI.yellow()
+        :notice -> ANSI.reset()
+        :info -> ANSI.reset()
+        :debug -> ANSI.reset()
+      end
+
+    level_str =
+      case level do
+        :emergency -> "EMERG"
+        :alert -> "ALERT"
+        :critical -> "CRIT"
+        :error -> "ERROR"
+        :warning -> "WARN"
+        :notice -> "NOTE"
+        :info -> "INFO"
+        :debug -> "dbg"
+      end
+    |> String.pad_leading(5)
+
+    faint_color = ANSI.faint()
+
+    # Set padding to longest seen prefix - no ideal, should probably shrink again over
+    # time or have a max?
+    max_len = Process.get(:max_prefix_len, 0)
+    new_max = max(String.length(prefix), max_len)
+    Process.put(:max_prefix_len, new_max)
+
+    level_io = [level_color, level_str, reset, " "]
+    prefix_io = case prefix do
+                   nil -> []
+                   _ -> [color, String.pad_trailing(prefix, new_max), reset, " "]
+                 end
+    message_io = [msg_color, message, " "]
+    file_io = [faint_color, file, ":", Integer.to_string(line), reset]
+
     [
-      color, ts, " ",
-      "[", Atom.to_string(level), "] ", reset, message, "\n"
+      "\n", t, " ",
+      prefix_io,
+      level_io,
+      message_io,
+      file_io,
     ]
-  end
-
-  defp normalize_message(msg) do
-    case msg do
-      {:string, iodata} -> IO.iodata_to_binary(iodata)
-      fun when is_function(fun, 0) -> normalize_message(fun.())
-      iodata -> IO.iodata_to_binary(iodata)
-    end
-  end
-
-  defp format_timestamp({{year, month, day}, {hour, min, sec, ms}}) do
-    micro = {ms * 1000, 6}
-    {:ok, naive} = NaiveDateTime.from_erl({{year, month, day}, {hour, min, sec}}, micro)
-    DateTime.from_naive!(naive, "Etc/UTC") |> DateTime.to_string()
+  rescue
+    e -> "could not format: #{inspect({level, message, metadata})}: #{inspect e}"
   end
 end

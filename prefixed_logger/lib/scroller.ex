@@ -1,8 +1,9 @@
 defmodule Scroller do
-  use PrefixedLogger, prefix: "scroller: "
+  require Logger
 
   def run do
-    info("prefixed log")
-    warning(fn -> "lazy prefixed log" end)
+    Logger.metadata([registered_name: "engine"])
+    Logger.info("prefixed log")
+    Logger.warning(fn -> "lazy prefixed log" end)
   end
 end

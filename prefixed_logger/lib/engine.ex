@@ -1,13 +1,13 @@
 defmodule Engine do
-  use PrefixedLogger, prefix: "engine: "
   require Logger
 
   def run do
+    Logger.metadata([registered_name: "engine"])
     Logger.debug("plain log")
-    debug("prefixed log")
-    info("prefixed log")
-    warning("prefixed log")
-    error("prefixed log")
-    warning(fn -> "lazy prefixed log" end)
+    Logger.debug("prefixed log")
+    Logger.info("prefixed log")
+    Logger.warning("prefixed log")
+    Logger.error("prefixed log")
+    Logger.warning(fn -> "lazy prefixed log" end)
   end
 end
