@@ -47,17 +47,25 @@ defmodule MyApp.LoggerFormatter do
   #
   @spec format_timestamp({{year :: integer, month :: integer, day :: integer},
                           {hour :: integer, min :: integer, sec :: integer, micro :: integer}},
-    precision :: :ms | :milli) :: iodata()
-  def format_timestamp({{year, month, day}, {hour, min, sec, micro}}, :ms) do
-    ms = div(micro, 1000)
+    precision :: :s | :ms | :us) :: iodata()
+  def format_timestamp({{year, month, day}, {hour, min, sec, _ms}}, :us) do
+    micros = System.system_time(:microsecond)
+    usec = rem(micros, 1_000_000)
 
+    :io_lib.format(
+      "~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B.~6..0B",
+      [year, month, day, hour, min, sec, usec]
+    )
+  end
+
+  def format_timestamp({{year, month, day}, {hour, min, sec, ms}}, :ms) do
     :io_lib.format(
       "~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B.~3..0B",
       [year, month, day, hour, min, sec, ms]
     )
   end
 
-  def format_timestamp({{year, month, day}, {hour, min, sec, _micro}}, :milli) do
+  def format_timestamp({{year, month, day}, {hour, min, sec, _micro}}, :s) do
     # Whole seconds only
     :io_lib.format(
       "~4..0B-~2..0B-~2..0B ~2..0B:~2..0B:~2..0B",
