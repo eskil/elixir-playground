@@ -40,6 +40,17 @@ defmodule MyApp.LoggerFormatter do
     metadata: [:error_code, :file, :line, :registered_name, :color],
   ```
   """
+
+  # TODO: configurably things
+  # - color off when :io.getopts[:terminal] is false?
+  # - disable date
+  # - disable file/line
+  # - s/ms/us resolution
+  # - as format? "%data %time.%us %prefix %level %source"
+  # - runtime configurable level per prefix/module? Similar to flexlogger, but ets backed
+  #   so runtime configurable?
+
+
   alias IO.ANSI
 
   ###
@@ -76,9 +87,8 @@ defmodule MyApp.LoggerFormatter do
   def format_timestamp(ts), do: format_timestamp(ts, :ms)
 
   ###
-  # Pick a consistent (using hash) color for a given prefix
+  # Pick a consistent color for a given prefix by hashing it.
   #
-
   @colors [
     :red,
     :green,
@@ -118,9 +128,10 @@ defmodule MyApp.LoggerFormatter do
   # Manage in an ets table. State is eg. longest current prefix.
   # TODO: also track resetting it, eg after :io.rows lines logged
   # or a time
-  #
+  # TODO: also limit max
   @ets_table :pretty_logger_formatter
   @ets_maxlen_key :longest
+  @ets_messages_gone_by
 
   defp ensure_table do
     case :ets.info(@ets_table) do
@@ -184,7 +195,7 @@ defmodule MyApp.LoggerFormatter do
         :warning -> ANSI.yellow()
         :notice -> ANSI.reset()
         :info -> ANSI.reset()
-        :debug -> ANSI.reset()
+        :debug -> ANSI.cyan()
       end
 
     level_str =
