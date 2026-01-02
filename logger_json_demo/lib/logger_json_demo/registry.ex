@@ -1,0 +1,2 @@
+defmodule LoggerJsonDemo.Registry do
+end
