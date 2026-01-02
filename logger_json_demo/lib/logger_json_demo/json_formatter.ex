@@ -27,5 +27,6 @@ defmodule LoggerJsonDemo.JsonFormatter do
   defp encode_value(v) when is_pid(v), do: inspect(v)
   defp encode_value(v) when is_tuple(v), do: Tuple.to_list(v)
   defp encode_value(v) when is_list(v), do: Enum.map(v, &encode_value/1)
+  defp encode_value(v) when is_map(v), do: Map.new(v, fn {k, val} -> {k, encode_value(val)} end)
   defp encode_value(v), do: v
 end

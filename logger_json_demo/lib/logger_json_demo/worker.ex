@@ -20,16 +20,22 @@ defmodule LoggerJsonDemo.Worker do
       case :rand.uniform(3) do
         1 -> [foo: "bar"]
         2 -> [baz: 123]
-        3 -> [custom: :value, random: :rand.uniform(100)]
+        3 -> [
+          custom: :value,
+          random: :rand.uniform(100)
+        ]
       end
+
+    extra_meta = []
+
     details = [
       worker_id: state[:id],
-      interval: state[:interval],
       pid: self(),
-      timestamp: DateTime.utc_now()
-    ] ++ extra
-    Logger.metadata(details: details)
-    Logger.info("Worker #{state[:id]} logging every #{state[:interval]} ms")
+      timestamp: DateTime.utc_now(),
+      extra: extra
+    ] ++ extra_meta
+
+    Logger.info("Worker #{state[:id]} logging every #{state[:interval]} ms", details)
     schedule_tick(state[:interval])
     {:noreply, state}
   end
